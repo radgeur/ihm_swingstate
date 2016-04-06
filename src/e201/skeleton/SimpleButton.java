@@ -13,10 +13,16 @@ import fr.lri.swingstates.canvas.CShape;
 import fr.lri.swingstates.canvas.CStateMachine;
 import fr.lri.swingstates.canvas.CText;
 import fr.lri.swingstates.canvas.Canvas;
+import fr.lri.swingstates.canvas.transitions.EnterOnTag;
+import fr.lri.swingstates.canvas.transitions.LeaveOnTag;
+import fr.lri.swingstates.canvas.transitions.PressOnTag;
+import fr.lri.swingstates.canvas.transitions.ReleaseOnTag;
 import fr.lri.swingstates.debug.StateMachineVisualization;
 import fr.lri.swingstates.sm.State;
 import fr.lri.swingstates.sm.Transition;
+import fr.lri.swingstates.sm.transitions.Press;
 import fr.lri.swingstates.sm.transitions.Release;
+import fr.lri.swingstates.sm.transitions.TimeOut;
 
 /**
  * @author Nicolas Roussel (roussel@lri.fr)
@@ -26,20 +32,43 @@ public class SimpleButton {
 
     private CText label ;
     private CRectangle rect;
-    private CExtensionalTag overed;
-    private CExtensionalTag clicked;
+    private CExtensionalTag overed, clicked, container;
     private CStateMachine sm;
-
+    private Canvas canvas;
+    private final int button, modifier, timer;
+    private int nbPress;
+    
     SimpleButton(Canvas canvas, String text) {
-	   label = canvas.newText(0, 0, text, new Font("verdana", Font.PLAIN, 12));
-	   rect = canvas.newRectangle(0,0,50,15);
+    	this.canvas = canvas;
+    	label = canvas.newText(0, 0, text, new Font("verdana", Font.PLAIN, 12));
+    	rect = canvas.newRectangle(0,0,50,15);
+    	this.button = 1;
+    	this.timer = 800;
+    	this.modifier = 0;
+    	this.nbPress = 0;
+    	construct();
+    }
+    
+    SimpleButton(Canvas canvas, String text, int button, int modifier) {
+    	this.canvas = canvas;
+ 	   	label = canvas.newText(0, 0, text, new Font("verdana", Font.PLAIN, 12));
+ 	   	rect = canvas.newRectangle(0,0,50,15);
+ 	   	this.button = button;
+ 	   	this.timer = 800;
+ 	   	this.modifier = modifier;
+ 	   	this.nbPress = 0;
+ 	   	construct();
+    }
+    
+    
+    public void construct(){
 	   //put ever label above rect
 	   label.above(rect);
 	   //rect is now a child of label and when something happen to label, it is apply on rect too
 	   label.addChild(rect);
 	   
 	   //create one tag per action
-	   CExtensionalTag container = new CExtensionalTag(canvas){};
+	   container = new CExtensionalTag(canvas){};
 	   rect.addTag(container);
 	   label.addTag(container);
 	   
@@ -79,7 +108,12 @@ public class SimpleButton {
 				   rect.addTag(overed);
 			   }
 			   
-			   Transition click = new PressOnTag(container, BUTTON1, ">> click") {};
+			   Transition click = new PressOnTag(container, button, modifier, ">> click") {
+				   public void action(){
+	    				nbPress++;
+						armTimer(timer, false);
+					}
+			   };
 			   Transition leave = new LeaveOnTag(container, ">> nothing") {};
 			   
 			   public void leave() {
@@ -93,21 +127,32 @@ public class SimpleButton {
 				  rect.addTag(clicked);
 			  }
 			  
-			  Transition releaseOnShape = new ReleaseOnTag(container, BUTTON1, ">>over"){};
-			  Transition leaveOnTag = new LeaveOnTag(container, BUTTON1, ">>out"){};
+			  Transition releaseOnShape = new ReleaseOnTag(container, button, ">>over"){};
+			  
+			  Transition leaveOnTag = new LeaveOnTag(container, ">>out"){};
 			  
 			  public void leave(){
 				  rect.removeTag(clicked);
 			  }
+			  
+			  Transition timeIsOut=new TimeOut(">> over"){
+				  public void action(){
+  					//SimpleButton.this.action(nbPress+" and a half click(s)");
+  					System.out.println("timer out and nbPress " + nbPress);
+  					nbPress--;
+				  }
+			  };
+			  
 		  };
-		   
+		  
 		   //when out of the shape
 		  public State out = new State(){
 			  
-			  Transition releaseOut = new Release(BUTTON1, ">>nothing"){};
-			  Transition returnOnButton = new EnterOnTag(container, BUTTON1, ">>click"){};
-			  
+			  Transition releaseOut = new Release(button, ">>nothing"){};
+			  Transition returnOnButton = new EnterOnTag(container, ">>click"){};
 		  };
+		  
+		  
 	   };
 	   sm.attachTo(canvas);
     }
@@ -128,6 +173,7 @@ public class SimpleButton {
 	   JFrame frame = new JFrame() ;
 	   Canvas canvas = new Canvas(400,400) ;
 	   frame.getContentPane().add(canvas) ;
+	   frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE) ;
 	   frame.pack() ;
 	   frame.setVisible(true) ;
 
@@ -137,6 +183,7 @@ public class SimpleButton {
 	   JFrame visual = new JFrame();
 	   visual.getContentPane().add(new StateMachineVisualization(simple.sm));
 	   visual.setLocation(500, 500);
+	   visual.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE) ;
 	   visual.pack();
 	   visual.setVisible(true);
     }
